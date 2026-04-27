@@ -1,0 +1,124 @@
+version: "3.9"
+
+# This file starts the ENTIRE backend stack with one command:
+# docker-compose up --build
+#
+# Services:
+#   db       → PostgreSQL (your data)
+#   redis    → Redis (timer state, caching, Celery broker)
+#   api      → FastAPI app (the backend)
+#   worker   → Celery worker (AI proctoring, emails, result calc)
+#   flower   → Celery monitoring dashboard (dev only)
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: vaidya_db
+    environment:
+      POSTGRES_USER: vaidya_user
+      POSTGRES_PASSWORD: vaidya_password
+      POSTGRES_DB: vaidya_db
+    ports:
+      - "5432:5432"       # Expose to host for database tools (TablePlus, DBeaver)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # Persist data between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaidya_user -d vaidya_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vaidya_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes    # Persist data to disk
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI App ────────────────────────────────────────────────────────────
+  api:
+    build: .
+    container_name: vaidya_api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vaidya_user:vaidya_password@db:5432/vaidya_db
+      REDIS_URL: redis://redis:6379
+      ENVIRONMENT: development
+      DEBUG: "True"
+      JWT_SECRET_KEY: dev-secret-change-in-production-please
+      FRONTEND_URL: http://localhost:5173
+      # Add your real keys in .env (not committed to git)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ap-south-1
+      S3_BUCKET_NAME: vaidya-assets-dev
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app    # Mount source code so changes reflect without rebuild
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
+  # Handles: AI proctoring analysis, email sending, result calculation
+  worker:
+    build: .
+    container_name: vaidya_celery_worker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vaidya_user:vaidya_password@db:5432/vaidya_db
+      REDIS_URL: redis://redis:6379
+      DEBUG: "True"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ap-south-1
+      S3_BUCKET_NAME: vaidya-assets-dev
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    # Run two queues:
+    # proctoring → face/object/audio AI tasks (higher concurrency)
+    # default    → emails, result calculation
+    command: >
+      celery -A app.tasks.proctoring_tasks.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      -Q proctoring,results,email,celery
+
+  # ── Flower (Celery Monitor) ────────────────────────────────────────────────
+  # Open http://localhost:5555 to see task queues, workers, failures
+  flower:
+    build: .
+    container_name: vaidya_flower
+    ports:
+      - "5555:5555"
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+      - worker
+    command: >
+      celery -A app.tasks.proctoring_tasks.celery_app flower
+      --port=5555
+      --broker=redis://redis:6379
+
+
+volumes:
+  postgres_data:
+  redis_data:

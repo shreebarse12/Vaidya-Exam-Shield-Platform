@@ -1,0 +1,48 @@
+# ── Web Framework ────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0      # ASGI server with websocket support
+
+# ── Database ─────────────────────────────────────────────
+sqlalchemy==2.0.30             # Async ORM
+asyncpg==0.29.0                # Async PostgreSQL driver
+alembic==1.13.1                # Database migrations
+
+langchain==0.*
+langchain-core==0.*
+langchain-groq==0.*
+
+
+# ── Auth & Security ───────────────────────────────────────
+python-jose[cryptography]==3.3.0  # JWT encode/decode
+passlib[bcrypt]==1.7.4            # Password hashing
+python-multipart==0.0.9           # Form data parsing
+
+# ── Settings & Validation ────────────────────────────────
+pydantic==2.7.1
+pydantic-settings==2.2.1
+pydantic[email]==2.7.1         # EmailStr validator
+
+# ── Redis (cache, timer state, Celery broker) ────────────
+redis==5.0.4
+
+# ── Async HTTP Client (for external APIs) ────────────────
+httpx==0.27.0
+
+# ── Payments ─────────────────────────────────────────────
+razorpay==1.4.1
+
+# ── AWS (S3 for images, SES for email) ───────────────────
+boto3==1.34.102
+
+# ── Celery (async task queue for proctoring, email) ──────
+celery==5.4.0
+flower==2.0.1                  # Celery monitoring dashboard
+
+# ── AI/ML (Phase 2 - proctoring) ─────────────────────────
+opencv-python==4.9.0.80
+ultralytics==8.2.0           # YOLOv8
+mediapipe==0.10.14
+# openai-whisper==20231117
+
+# ── Dev Tools ────────────────────────────────────────────
+python-dotenv==1.0.1

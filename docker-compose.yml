@@ -1,0 +1,140 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: vaidya_db
+    environment:
+      POSTGRES_USER: vaidya_user
+      POSTGRES_PASSWORD: vaidya_password
+      POSTGRES_DB: vaidya_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vaidya_user -d vaidya_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: vaidya_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./vaidya-backend
+      dockerfile: dockerfile
+    container_name: vaidya_api
+    working_dir: /app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./vaidya-backend:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vaidya_user:vaidya_password@db:5432/vaidya_db
+      REDIS_URL: redis://redis:6379
+      ENVIRONMENT: development
+      DEBUG: "True"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-me}
+      FRONTEND_URL: http://localhost:5173
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-vaidya-assets-dev}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      AWS_SES_SENDER_EMAIL: ${AWS_SES_SENDER_EMAIL:-noreply@vaidya.in}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./vaidya-backend
+      dockerfile: dockerfile
+    container_name: vaidya_celery_worker
+    working_dir: /app
+    command: >
+      celery -A app.tasks.proctoring_tasks.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      -Q proctoring,results,email,celery
+    volumes:
+      - ./vaidya-backend:/app
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vaidya_user:vaidya_password@db:5432/vaidya_db
+      REDIS_URL: redis://redis:6379
+      DEBUG: "True"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-vaidya-assets-dev}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  flower:
+    build:
+      context: ./vaidya-backend
+      dockerfile: dockerfile
+    container_name: vaidya_flower
+    working_dir: /app
+    command: celery -A app.tasks.proctoring_tasks.celery_app flower --port=5555 --broker=redis://redis:6379
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./vaidya-backend:/app
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./vaidya-frontend
+      dockerfile: Dockerfile
+    container_name: vaidya_frontend
+    working_dir: /app
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./vaidya-frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_WS_URL: ws://localhost:8000
+      VITE_RAZORPAY_KEY_ID: ${VITE_RAZORPAY_KEY_ID:-rzp_test_your_key_here}
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:
+  frontend_node_modules:
