@@ -257,6 +257,4 @@ This repository is set up for active development and includes:
 - proctoring pipeline
 - ranking and rank publishing flow
 
-## License
 
-Add your preferred license here before public release.
