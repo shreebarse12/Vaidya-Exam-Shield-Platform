@@ -1,217 +1,236 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+// FILE: src/router/index.jsx
+import React, { Suspense } from 'react'
+
+// ── Role → Dashboard mapping (used by Login page) ────────────────────────────
+const ROLE_HOME = {
+  student: '/student/dashboard',
+  faculty: '/faculty/dashboard',
+  institute_admin: '/admin/dashboard',
+  super_admin: '/super-admin/dashboard',
+}
+export const getRoleHome = (role) => ROLE_HOME[role] || '/login'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { selectUser } from '@/store/authSlice'
+import { AnimatePresence } from 'framer-motion'
 
-// Auth pages
-import Login          from '@/pages/auth/Login'
-import Register       from '@/pages/auth/Register'
-import VerifyOTP      from '@/pages/auth/VerifyOTP'
-import ForgotPassword from '@/pages/auth/ForgotPassword'
-
-// Student pages
-import StudentDashboard from '@/pages/student/Dashboard'
-import ExamInterface    from '@/pages/student/ExamInterface'
-import ExamResults      from '@/pages/student/ExamResults'
-import AiDoubtSolver    from '@/pages/student/AiDoubtSolver'
-import StudentAnalytics from '@/pages/student/Analytics'
-
-// Faculty pages
-import FacultyDashboard from '@/pages/faculty/Dashboard'
-import QuestionBank     from '@/pages/faculty/QuestionBank'
-import ExamCreate       from '@/pages/faculty/ExamCreate'
-import FacultyAnalytics from '@/pages/faculty/Analytics'
-
-// Institute Admin pages
-import InstituteDashboard from '@/pages/institute-admin/Dashboard'
-import Students           from '@/pages/institute-admin/Students'
-import Faculty            from '@/pages/institute-admin/Faculty'
-import Batches            from '@/pages/institute-admin/Batches'
-import ProctoringReview   from '@/pages/institute-admin/ProctoringReview'
-
-// Super Admin pages
-import AdminDashboard from '@/pages/super-admin/Dashboard'
-import AdminTenants   from '@/pages/super-admin/Tenants'
-import AdminUsers     from '@/pages/super-admin/Users'
-
-// Layout
 import AppLayout from '@/components/shared/AppLayout'
+import ErrorBoundary from '@/components/shared/ErrorBoundary'
+import PageLoadingSpinner from '@/components/shared/PageLoadingSpinner'
+import PageTransition from '@/components/shared/PageTransition'
 
-// ── Role home map ─────────────────────────────────────────────────────────────
-// Defined once — used by RequireAuth and RoleRedirect
-export function getRoleHome(role) {
-  switch (role) {
-    case 'super_admin':     return '/admin/dashboard'
-    case 'institute_admin': return '/institute/dashboard'
-    case 'faculty':         return '/faculty/dashboard'
-    case 'student':         return '/student/dashboard'
-    default:                return '/login'
-  }
-}
+// ── Lazy-loaded pages ────────────────────────────────────────────────────────
+// Public
+const Landing        = React.lazy(() => import('@/pages/Landing'))
+const NotFound       = React.lazy(() => import('@/pages/NotFound'))
 
-// ── Route Guards ───────────────────────────────────────────────────────────────
+// Auth
+const Login          = React.lazy(() => import('@/pages/auth/Login'))
+const Register       = React.lazy(() => import('@/pages/auth/Register'))
+const VerifyOTP      = React.lazy(() => import('@/pages/auth/VerifyOTP'))
+const ForgotPassword = React.lazy(() => import('@/pages/auth/ForgotPassword'))
 
-/**
- * RequireAuth — wraps any route that needs a logged-in user.
- *
- * Fix: removed navigate() call entirely. <Navigate> component is used instead
- * which renders exactly once per decision — no loop possible.
- */
-export function RequireAuth({ children, allowedRoles }) {
+// Student
+const StudentDashboard  = React.lazy(() => import('@/pages/student/Dashboard'))
+const StudentAnalytics  = React.lazy(() => import('@/pages/student/Analytics'))
+const AiDoubtSolver     = React.lazy(() => import('@/pages/student/AiDoubtSolver'))
+const ExamInterface     = React.lazy(() => import('@/pages/student/ExamInterface'))
+const ExamResults       = React.lazy(() => import('@/pages/student/ExamResults'))
+const Practice          = React.lazy(() => import('@/pages/student/Practice'))
+const Results           = React.lazy(() => import('@/pages/student/Results'))
+
+// Faculty
+const FacultyDashboard  = React.lazy(() => import('@/pages/faculty/Dashboard'))
+const QuestionBank      = React.lazy(() => import('@/pages/faculty/QuestionBank'))
+const ExamCreate        = React.lazy(() => import('@/pages/faculty/ExamCreate'))
+const FacultyAnalytics  = React.lazy(() => import('@/pages/faculty/Analytics'))
+
+// Institute Admin
+const AdminDashboard    = React.lazy(() => import('@/pages/institute-admin/Dashboard'))
+const AdminFaculty      = React.lazy(() => import('@/pages/institute-admin/Faculty'))
+const AdminStudents     = React.lazy(() => import('@/pages/institute-admin/Students'))
+const AdminBatches      = React.lazy(() => import('@/pages/institute-admin/Batches'))
+const ProctoringReview  = React.lazy(() => import('@/pages/institute-admin/ProctoringReview'))
+const Subscription      = React.lazy(() => import('@/pages/institute-admin/Subscription'))
+const Branding          = React.lazy(() => import('@/pages/institute-admin/Branding'))
+
+// Super Admin
+const SuperDashboard    = React.lazy(() => import('@/pages/super-admin/Dashboard'))
+const Tenants           = React.lazy(() => import('@/pages/super-admin/Tenants'))
+const Users             = React.lazy(() => import('@/pages/super-admin/Users'))
+const GlobalQBank       = React.lazy(() => import('@/pages/super-admin/GlobalQBank'))
+const AuditLogs         = React.lazy(() => import('@/pages/super-admin/AuditLogs'))
+
+
+// ── Route guards ─────────────────────────────────────────────────────────────
+
+/** Only renders children if user is NOT logged in */
+function GuestOnly() {
   const user = useSelector(selectUser)
-
-  // Not logged in → go to login
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  // Logged in but wrong role → go to their own home
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={getRoleHome(user.role)} replace />
-  }
-
-  return children
+  if (user) return <RoleRedirect role={user.role} />
+  return (
+    <Suspense fallback={<PageLoadingSpinner />}>
+      <PageTransition><Outlet /></PageTransition>
+    </Suspense>
+  )
 }
 
-/**
- * RoleRedirect — the "/" route.
- * Sends each role to their home screen.
- * Sends unauthenticated users to /login.
- *
- * Fix: pure declarative <Navigate> — no navigate() hook, no effects.
- */
-export function RoleRedirect() {
+/** Only renders children if user IS logged in */
+function RequireAuth({ allowedRoles }) {
   const user = useSelector(selectUser)
   if (!user) return <Navigate to="/login" replace />
-  return <Navigate to={getRoleHome(user.role)} replace />
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <RoleRedirect role={user.role} />
+  }
+  return <Outlet />
 }
 
-/**
- * GuestOnly — wraps auth pages (login, register).
- * If already logged in, redirects to role home.
- * Prevents the navigate() loop in Login.jsx's useEffect.
- *
- * Fix: Auth pages are now wrapped in GuestOnly so Login never
- * even mounts when user is already logged in — the loop cannot start.
- */
-function GuestOnly({ children }) {
-  const user = useSelector(selectUser)
-  if (user) return <Navigate to={getRoleHome(user.role)} replace />
-  return children
+/** Layout wrapper that adds Suspense + PageTransition around Outlet */
+function LayoutWithTransition() {
+  return (
+    <AppLayout>
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <PageTransition><Outlet /></PageTransition>
+      </Suspense>
+    </AppLayout>
+  )
 }
 
-// ── Router ─────────────────────────────────────────────────────────────────────
+/** Redirects authenticated users to their role-based dashboard */
+function RoleRedirect({ role }) {
+  const map = {
+    student: '/student/dashboard',
+    faculty: '/faculty/dashboard',
+    institute_admin: '/admin/dashboard',
+    super_admin: '/super-admin/dashboard',
+  }
+  return <Navigate to={map[role] || '/login'} replace />
+}
+
+// ── Router definition ────────────────────────────────────────────────────────
 export const router = createBrowserRouter([
-
-  // ── Root: role-based redirect ──────────────────────────────────────────
-  { path: '/', element: <RoleRedirect /> },
-
-  // ── Public auth routes (GuestOnly = redirect away if already logged in) ─
+  // Public landing
   {
-    path: '/login',
-    element: <GuestOnly><Login /></GuestOnly>,
-  },
-  {
-    path: '/register',
-    element: <GuestOnly><Register /></GuestOnly>,
-  },
-  {
-    path: '/verify-email',
-    element: <GuestOnly><VerifyOTP /></GuestOnly>,
-  },
-  {
-    // Forgot password is accessible even while logged in (edge case)
-    path: '/forgot-password',
-    element: <ForgotPassword />,
-  },
-
-  // ── Student routes ──────────────────────────────────────────────────────
-  {
-    path: '/student',
+    path: '/',
     element: (
-      <RequireAuth allowedRoles={['student']}>
-        <AppLayout role="student" />
-      </RequireAuth>
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <Landing />
+      </Suspense>
     ),
+  },
+
+  // Auth pages (guest only)
+  {
+    element: <GuestOnly />,
     children: [
-      { index: true,              element: <Navigate to="dashboard" replace /> },
-      { path: 'dashboard',        element: <StudentDashboard /> },
-      { path: 'analytics',        element: <StudentAnalytics /> },
-      { path: 'doubt-solver',     element: <AiDoubtSolver /> },
+      { path: '/login',           element: <Login /> },
+      { path: '/register',        element: <Register /> },
+      { path: '/verify-otp',      element: <VerifyOTP /> },
+      { path: '/forgot-password', element: <ForgotPassword /> },
     ],
   },
 
-  // Exam interface: fullscreen, no AppLayout shell
+  // Exam interface (full-screen, no sidebar)
   {
-    path: '/exam/:examId',
-    element: (
-      <RequireAuth allowedRoles={['student']}>
-        <ExamInterface />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: '/exam/results/:attemptId',
-    element: (
-      <RequireAuth allowedRoles={['student']}>
-        <ExamResults />
-      </RequireAuth>
-    ),
-  },
-
-  // ── Faculty routes ──────────────────────────────────────────────────────
-  {
-    path: '/faculty',
-    element: (
-      <RequireAuth allowedRoles={['faculty', 'institute_admin', 'super_admin']}>
-        <AppLayout role="faculty" />
-      </RequireAuth>
-    ),
+    element: <RequireAuth allowedRoles={['student']} />,
     children: [
-      { index: true,              element: <Navigate to="dashboard" replace /> },
-      { path: 'dashboard',        element: <FacultyDashboard /> },
-      { path: 'questions',        element: <QuestionBank /> },
-      { path: 'exams/create',     element: <ExamCreate /> },
-      { path: 'analytics',        element: <FacultyAnalytics /> },
+      {
+        path: '/exam/:examId',
+        element: (
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <ExamInterface />
+            </Suspense>
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: '/exam/results/:attemptId',
+        element: (
+          <Suspense fallback={<PageLoadingSpinner />}>
+            <ExamResults />
+          </Suspense>
+        ),
+      },
     ],
   },
 
-  // ── Institute Admin routes ──────────────────────────────────────────────
+  // Student pages (inside layout)
   {
-    path: '/institute',
-    element: (
-      <RequireAuth allowedRoles={['institute_admin', 'super_admin']}>
-        <AppLayout role="institute_admin" />
-      </RequireAuth>
-    ),
+    element: <RequireAuth allowedRoles={['student']} />,
     children: [
-      { index: true,              element: <Navigate to="dashboard" replace /> },
-      { path: 'dashboard',        element: <InstituteDashboard /> },
-      { path: 'students',         element: <Students /> },
-      { path: 'faculty',          element: <Faculty /> },
-      { path: 'batches',          element: <Batches /> },
-      { path: 'proctoring',       element: <ProctoringReview /> },
+      {
+        element: <LayoutWithTransition />,
+        children: [
+          { path: '/student/dashboard', element: <StudentDashboard /> },
+          { path: '/student/analytics', element: <StudentAnalytics /> },
+          { path: '/student/doubt',     element: <AiDoubtSolver /> },
+          { path: '/student/practice',  element: <Practice /> },
+          { path: '/student/results',   element: <Results /> },
+        ],
+      },
     ],
   },
 
-  // ── Super Admin routes ──────────────────────────────────────────────────
+  // Faculty pages
   {
-    path: '/admin',
-    element: (
-      <RequireAuth allowedRoles={['super_admin']}>
-        <AppLayout role="super_admin" />
-      </RequireAuth>
-    ),
+    element: <RequireAuth allowedRoles={['faculty']} />,
     children: [
-      { index: true,              element: <Navigate to="dashboard" replace /> },
-      { path: 'dashboard',        element: <AdminDashboard /> },
-      { path: 'tenants',          element: <AdminTenants /> },
-      { path: 'users',            element: <AdminUsers /> },
+      {
+        element: <LayoutWithTransition />,
+        children: [
+          { path: '/faculty/dashboard',    element: <FacultyDashboard /> },
+          { path: '/faculty/questions',    element: <QuestionBank /> },
+          { path: '/faculty/exams/create', element: <ExamCreate /> },
+          { path: '/faculty/analytics',    element: <FacultyAnalytics /> },
+        ],
+      },
     ],
   },
 
-  // ── 404 fallback ────────────────────────────────────────────────────────
+  // Institute Admin pages
+  {
+    element: <RequireAuth allowedRoles={['institute_admin']} />,
+    children: [
+      {
+        element: <LayoutWithTransition />,
+        children: [
+          { path: '/admin/dashboard',   element: <AdminDashboard /> },
+          { path: '/admin/faculty',     element: <AdminFaculty /> },
+          { path: '/admin/students',    element: <AdminStudents /> },
+          { path: '/admin/batches',     element: <AdminBatches /> },
+          { path: '/admin/proctoring',  element: <ProctoringReview /> },
+          { path: '/admin/subscription',element: <Subscription /> },
+          { path: '/admin/branding',    element: <Branding /> },
+        ],
+      },
+    ],
+  },
+
+  // Super Admin pages
+  {
+    element: <RequireAuth allowedRoles={['super_admin']} />,
+    children: [
+      {
+        element: <LayoutWithTransition />,
+        children: [
+          { path: '/super-admin/dashboard', element: <SuperDashboard /> },
+          { path: '/super-admin/tenants',   element: <Tenants /> },
+          { path: '/super-admin/users',     element: <Users /> },
+          { path: '/super-admin/qbank',     element: <GlobalQBank /> },
+          { path: '/super-admin/audit',     element: <AuditLogs /> },
+        ],
+      },
+    ],
+  },
+
+  // Catch-all 404
   {
     path: '*',
-    element: <RoleRedirect />,
+    element: (
+      <Suspense fallback={<PageLoadingSpinner />}>
+        <NotFound />
+      </Suspense>
+    ),
   },
 ])

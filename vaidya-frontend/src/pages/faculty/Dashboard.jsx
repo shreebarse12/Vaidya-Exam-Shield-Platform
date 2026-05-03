@@ -8,6 +8,7 @@ import { questionApi } from '@/api/questionApi'
 import { examApi } from '@/api/examApi'
 import { analyticsApi } from '@/api/analyticsApi'
 import { StatCard, Spinner, PageHeader, Badge, Modal } from '@/components/shared/UI'
+import { DashboardCardSkeleton, TableRowSkeleton } from '@/components/shared/Skeletons'
 
 function RankingModal({ open, onClose, exam, rankingData, loading }) {
   return (
@@ -151,7 +152,12 @@ export default function FacultyDashboard() {
     return new Date(exam.end_time) <= new Date()
   }
 
-  if (loading) return <Spinner />
+  if (loading) return (
+    <div className="space-y-6">
+      <DashboardCardSkeleton count={3} />
+      <TableRowSkeleton rows={4} cols={7} />
+    </div>
+  )
 
   const statusColor = { published: 'green', draft: 'gray', ongoing: 'blue', completed: 'purple' }
 
@@ -179,7 +185,7 @@ export default function FacultyDashboard() {
 
       <div className="card">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">Your Exams</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Your Exams</h2>
           <button onClick={() => navigate('/faculty/exams/create')} className="btn-primary py-1.5 text-sm">
             <Plus className="w-3.5 h-3.5" /> New Exam
           </button>
@@ -187,9 +193,9 @@ export default function FacultyDashboard() {
 
         {exams.length === 0 ? (
           <div className="py-12 text-center">
-            <FileText className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-            <p className="font-medium text-slate-500">No exams yet</p>
-            <p className="mt-1 mb-4 text-sm text-slate-400">Create your first exam to get started</p>
+            <FileText className="mx-auto mb-3 h-10 w-10 text-slate-300 dark:text-gray-600" />
+            <p className="font-medium text-slate-500 dark:text-gray-400">No exams yet</p>
+            <p className="mt-1 mb-4 text-sm text-slate-400 dark:text-gray-500">Create your first exam to get started</p>
             <button onClick={() => navigate('/faculty/exams/create')} className="btn-primary">
               <Plus className="w-4 h-4" /> Create Exam
             </button>

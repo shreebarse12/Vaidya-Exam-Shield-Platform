@@ -70,14 +70,14 @@ export default function BrandLogo({
   light = false,
   subtitle,
 }) {
-  const titleColor = light ? 'text-white' : 'text-slate-900'
-  const subColor = light ? 'text-slate-300' : 'text-slate-500'
+  const titleColor = light ? 'text-white' : 'text-slate-900 dark:text-white'
+  const subColor = light ? 'text-slate-300' : 'text-slate-500 dark:text-gray-400'
 
   return (
     <div className={clsx('flex items-center gap-3', className)}>
       <div className={clsx(
         'flex items-center justify-center rounded-2xl border shadow-lg',
-        light ? 'border-white/20 bg-slate-950' : 'border-slate-200 bg-slate-950',
+        light ? 'border-white/20 bg-slate-950' : 'border-slate-200 dark:border-gray-700 bg-slate-950',
         compact ? 'h-12 w-12' : 'h-20 w-20'
       )}>
         <CrestMark className={compact ? 'h-10 w-10' : 'h-16 w-16'} />

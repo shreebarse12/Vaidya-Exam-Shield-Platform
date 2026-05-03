@@ -41,8 +41,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl dark:shadow-2xl dark:border dark:border-gray-800 w-full max-w-md p-8">
 
         {/* Logo */}
         <div className="text-center mb-8">
@@ -80,7 +80,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
                 {showPwd
                   ? <EyeOff className="w-4 h-4" />
@@ -95,7 +95,7 @@ export default function Login() {
 
           {/* Remember me + Forgot */}
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-400 cursor-pointer">
               <input
                 type="checkbox"
                 {...register('remember_me')}
@@ -127,7 +127,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-slate-500 dark:text-gray-400 mt-6">
           Don't have an account?{' '}
           <Link to="/register" className="text-blue-600 font-medium hover:underline">
             Register
