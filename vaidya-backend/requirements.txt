@@ -44,5 +44,8 @@ ultralytics==8.2.0           # YOLOv8
 mediapipe==0.10.14
 # openai-whisper==20231117
 
+# ── Rate Limiting ────────────────────────────────────────
+slowapi==0.1.9
+
 # ── Dev Tools ────────────────────────────────────────────
 python-dotenv==1.0.1

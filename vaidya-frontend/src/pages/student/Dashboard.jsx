@@ -5,6 +5,7 @@ import { examApi } from '@/api/examApi'
 import { analyticsApi } from '@/api/analyticsApi'
 import { useNavigate } from 'react-router-dom'
 import { StatCard, Spinner, Badge } from '@/components/shared/UI'
+import { DashboardCardSkeleton, TableRowSkeleton } from '@/components/shared/Skeletons'
 import { Trophy, Target, Clock, BookOpen, Play, TrendingUp } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -79,7 +80,12 @@ export default function StudentDashboard() {
   }
 
 
-  if (loading) return <Spinner />
+  if (loading) return (
+    <div className="space-y-6">
+      <DashboardCardSkeleton count={4} />
+      <TableRowSkeleton rows={3} cols={4} />
+    </div>
+  )
 
 
   return (

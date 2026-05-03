@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.session import get_db
 from app.dependencies import require_student
@@ -18,9 +20,13 @@ from app.services.doubt_service import (
 
 router = APIRouter()
 
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/ask", response_model=DoubtAskResponse, summary="Ask AI doubt")
+@limiter.limit("30/minute")
 async def ask_doubt(
+    request: Request,
     data: DoubtAskRequest,
     current_user=Depends(require_student),
 ):
@@ -32,7 +38,9 @@ async def ask_doubt(
 
 
 @router.post("/analyze-last-exam", response_model=DoubtExamAnalysisResponse, summary="Analyze student's latest submitted exam")
+@limiter.limit("10/minute")
 async def analyze_student_last_exam(
+    request: Request,
     current_user=Depends(require_student),
     db: AsyncSession = Depends(get_db),
 ):
@@ -58,7 +66,9 @@ async def list_student_exams(
 
 
 @router.get("/analyze-attempt/{attempt_id}", response_model=DoubtExamAnalysisResponse, summary="Analyze a specific exam attempt")
+@limiter.limit("10/minute")
 async def analyze_specific_attempt(
+    request: Request,
     attempt_id: str,
     current_user=Depends(require_student),
     db: AsyncSession = Depends(get_db),

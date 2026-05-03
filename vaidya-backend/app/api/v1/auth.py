@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.session import get_db
 from app.dependencies import get_current_user
@@ -23,6 +25,8 @@ from app.services import auth_service
 # /api/v1/auth/register, /api/v1/auth/login, etc.
 router = APIRouter()
 
+limiter = Limiter(key_func=get_remote_address)
+
 
 # ── POST /register ─────────────────────────────────────────────────────────────
 @router.post(
@@ -32,7 +36,9 @@ router = APIRouter()
     summary="Register a new user",
     description="Creates a new user account. Sends a 6-digit OTP to the provided email for verification.",
 )
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     data: RegisterRequest,         # FastAPI auto-parses + validates the JSON body
     db: AsyncSession = Depends(get_db),
 ):
@@ -69,7 +75,9 @@ async def register(
     response_model=VerifyOTPResponse,
     summary="Verify email with OTP",
 )
+@limiter.limit("5/minute")
 async def verify_email(
+    request: Request,
     data: VerifyOTPRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -87,7 +95,9 @@ async def verify_email(
     summary="Log in",
     description="Returns JWT access token (15 min) and refresh token (7 days).",
 )
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -113,7 +123,9 @@ async def refresh_token(
     response_model=MessageResponse,
     summary="Request password reset OTP",
 )
+@limiter.limit("3/minute")
 async def forgot_password(
+    request: Request,
     data: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):

@@ -34,8 +34,8 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-950 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl dark:shadow-2xl dark:border dark:border-gray-800 w-full max-w-md p-8">
         <div className="text-center mb-8">
           <BrandLogo className="justify-center" subtitle="Create your account" />
         </div>
@@ -54,8 +54,8 @@ export default function Register() {
                   key={r.value}
                   className={`flex items-center justify-center py-2 rounded-lg border text-sm font-medium cursor-pointer transition-colors ${
                     role === r.value
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 text-slate-600 hover:border-blue-300'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-400 hover:border-blue-300 dark:hover:border-blue-600'
                   }`}
                 >
                   <input type="radio" {...register('role')} value={r.value} className="sr-only" />
@@ -139,7 +139,7 @@ export default function Register() {
               <button
                 type="button"
                 onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
                 {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -153,14 +153,14 @@ export default function Register() {
         </form>
 
         {role === 'institute_admin' && (
-          <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-            <p className="text-xs text-amber-700">
+          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               Institute registrations require Super Admin approval before you can log in.
             </p>
           </div>
         )}
 
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-slate-500 dark:text-gray-400 mt-6">
           Already have an account?{' '}
           <Link to="/login" className="text-blue-600 font-medium hover:underline">Sign in</Link>
         </p>
